@@ -1,0 +1,29 @@
+{
+  "SchemaVersion": 2,
+  "Results": [
+    {
+      "Target": "hardened-ubuntu:22.04",
+      "Type": "os",
+      "Vulnerabilities": [
+        {
+          "PkgName": "curl",
+          "InstalledVersion": "7.88.0",
+          "VulnerabilityID": "CVE-2024-2222",
+          "Severity": "LOW"
+        },
+        {
+          "PkgName": "zlib",
+          "InstalledVersion": "1.2.11",
+          "VulnerabilityID": "CVE-2024-3333",
+          "Severity": "LOW"
+        },
+        {
+          "PkgName": "jq",
+          "InstalledVersion": "1.6",
+          "VulnerabilityID": "CVE-2024-4444",
+          "Severity": "HIGH"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "SchemaVersion": 2,
+  "Results": [
+    {
+      "Target": "ubuntu:22.04",
+      "Type": "os",
+      "Vulnerabilities": [
+        {
+          "PkgName": "openssl",
+          "InstalledVersion": "1.0.2",
+          "VulnerabilityID": "CVE-2024-1111",
+          "Severity": "HIGH"
+        },
+        {
+          "PkgName": "curl",
+          "InstalledVersion": "7.80.0",
+          "VulnerabilityID": "CVE-2024-2222",
+          "Severity": "MEDIUM"
+        },
+        {
+          "PkgName": "zlib",
+          "InstalledVersion": "1.2.11",
+          "VulnerabilityID": "CVE-2024-3333",
+          "Severity": "LOW"
+        }
+      ]
+    }
+  ]
+}

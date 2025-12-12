@@ -19,6 +19,7 @@ import (
 
 	"github.com/interlynk-io/sbomdelta/pkg/delta"
 	"github.com/interlynk-io/sbomdelta/pkg/types"
+	"github.com/interlynk-io/sbomdelta/pkg/vuln"
 )
 
 var (
@@ -67,26 +68,17 @@ func buildConfigFromFlags() (*types.Config, error) {
 
 	var err error
 
-	cfg.UpstreamSBOMFormat, err = types.ParseSBOMFormat(flagUpSBOMFormat)
+	cfg.UpstreamVulnFormat, err = vuln.ParseVulnFormat(flagUpVulnFormat)
 	if err != nil {
 		return nil, err
 	}
-	cfg.HardenedSBOMFormat, err = types.ParseSBOMFormat(flagHdSBOMFormat)
-	if err != nil {
-		return nil, err
-	}
-
-	cfg.UpstreamVulnFormat, err = types.ParseVulnFormat(flagUpVulnFormat)
-	if err != nil {
-		return nil, err
-	}
-	cfg.HardenedVulnFormat, err = types.ParseVulnFormat(flagHdVulnFormat)
+	cfg.HardenedVulnFormat, err = vuln.ParseVulnFormat(flagHdVulnFormat)
 	if err != nil {
 		return nil, err
 	}
 
 	if flagBcVuln != "" {
-		cfg.BackportVulnFormat, err = types.ParseVulnFormat(flagBcVulnFormat)
+		cfg.BackportVulnFormat, err = vuln.ParseVulnFormat(flagBcVulnFormat)
 		if err != nil {
 			return nil, err
 		}

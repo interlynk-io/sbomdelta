@@ -19,7 +19,6 @@ import (
 	"os"
 
 	"github.com/interlynk-io/sbomdelta/pkg/bom"
-	"github.com/interlynk-io/sbomdelta/pkg/types"
 )
 
 // VulnKey: “which package, which CVE”.
@@ -64,6 +63,24 @@ const (
 	SeverityCritical Severity = "CRITICAL"
 )
 
+type VulnFormat string
+
+const (
+	VulnFormatTrivy VulnFormat = "trivy"
+	VulnFormatGrype VulnFormat = "grype"
+)
+
+func ParseVulnFormat(s string) (VulnFormat, error) {
+	switch s {
+	case "trivy":
+		return VulnFormatTrivy, nil
+	case "grype":
+		return VulnFormatGrype, nil
+	default:
+		return "", fmt.Errorf("unsupported vuln format %q (expected trivy or grype)", s)
+	}
+}
+
 func MakePkgSet(keys []bom.PkgKey) map[bom.PkgKey]struct{} {
 	set := make(map[bom.PkgKey]struct{}, len(keys))
 	for _, k := range keys {
@@ -79,16 +96,16 @@ func MakeVulnKey(pkgKey bom.PkgKey, cve string) VulnKey {
 	}
 }
 
-func LoadVulns(path string, format types.VulnFormat) (map[VulnKey]VulnFinding, error) {
+func LoadVulns(path string, format VulnFormat) (map[VulnKey]VulnFinding, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading SBOM %s: %w", path, err)
 	}
 
 	switch format {
-	case types.VulnFormatTrivy:
+	case VulnFormatTrivy:
 		return loadTrivy(data)
-	case types.VulnFormatGrype:
+	case VulnFormatGrype:
 		return loadGrype(data)
 	default:
 		return nil, fmt.Errorf("unsupported vuln format: %s", format)

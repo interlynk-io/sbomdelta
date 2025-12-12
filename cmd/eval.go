@@ -1,3 +1,17 @@
+// Copyright 2025 Interlynk.io
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package cmd
 
 import (
@@ -5,6 +19,7 @@ import (
 
 	"github.com/interlynk-io/sbomdelta/pkg/delta"
 	"github.com/interlynk-io/sbomdelta/pkg/types"
+	"github.com/interlynk-io/sbomdelta/pkg/vuln"
 )
 
 var (
@@ -53,26 +68,17 @@ func buildConfigFromFlags() (*types.Config, error) {
 
 	var err error
 
-	cfg.UpstreamSBOMFormat, err = types.ParseSBOMFormat(flagUpSBOMFormat)
+	cfg.UpstreamVulnFormat, err = vuln.ParseVulnFormat(flagUpVulnFormat)
 	if err != nil {
 		return nil, err
 	}
-	cfg.HardenedSBOMFormat, err = types.ParseSBOMFormat(flagHdSBOMFormat)
-	if err != nil {
-		return nil, err
-	}
-
-	cfg.UpstreamVulnFormat, err = types.ParseVulnFormat(flagUpVulnFormat)
-	if err != nil {
-		return nil, err
-	}
-	cfg.HardenedVulnFormat, err = types.ParseVulnFormat(flagHdVulnFormat)
+	cfg.HardenedVulnFormat, err = vuln.ParseVulnFormat(flagHdVulnFormat)
 	if err != nil {
 		return nil, err
 	}
 
 	if flagBcVuln != "" {
-		cfg.BackportVulnFormat, err = types.ParseVulnFormat(flagBcVulnFormat)
+		cfg.BackportVulnFormat, err = vuln.ParseVulnFormat(flagBcVulnFormat)
 		if err != nil {
 			return nil, err
 		}

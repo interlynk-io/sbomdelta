@@ -1,43 +1,50 @@
+// Copyright 2025 Interlynk.io
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package delta
 
 import (
 	"context"
 	"fmt"
 
+	"github.com/interlynk-io/sbomdelta/pkg/bom"
 	"github.com/interlynk-io/sbomdelta/pkg/reporter"
-	"github.com/interlynk-io/sbomdelta/pkg/sbom"
 	"github.com/interlynk-io/sbomdelta/pkg/types"
 	"github.com/interlynk-io/sbomdelta/pkg/vuln"
 )
 
-// simple implementation; later you can implement a richer backport matcher.
+// simple implementation; later to implement a richer backport matcher.
 type backportIgnoreSet struct {
-	m map[types.VulnKey]struct{}
+	m map[vuln.VulnKey]struct{}
 }
 
-func (b *backportIgnoreSet) Matches(pkg types.PkgKey, cve string) bool {
+func (b *backportIgnoreSet) Matches(pkg bom.PkgKey, cve string) bool {
 	if b == nil {
 		return false
 	}
-	_, ok := b.m[types.VulnKey{Pkg: pkg, CVE: cve}]
+	_, ok := b.m[vuln.VulnKey{Pkg: pkg, CVE: cve}]
 	return ok
 }
 
 func RunEval(_ context.Context, cfg *types.Config) error {
-	// // For now, just confirm we parsed everything correctly.
-	// fmt.Println("== delta eval ==")
-	// fmt.Printf("Upstream SBOM:  %s (%s)\n", cfg.UpstreamSBOMPath, cfg.UpstreamSBOMFormat)
-	// fmt.Printf("Hardened SBOM:  %s (%s)\n", cfg.HardenedSBOMPath, cfg.HardenedSBOMFormat)
-	// fmt.Printf("Upstream Vuln:  %s (%s)\n", cfg.UpstreamVulnPath, cfg.UpstreamVulnFormat)
-	// fmt.Printf("Hardened Vuln:  %s (%s)\n", cfg.HardenedVulnPath, cfg.HardenedVulnFormat)
-
 	if cfg.BackportVulnPath != "" {
 		fmt.Printf("Backport Vuln:  %s (%s)\n", cfg.BackportVulnPath, cfg.BackportVulnFormat)
 	} else {
 		fmt.Println("Backport Vuln:  (none)")
 	}
 
-	// Next steps (we'll implement in later steps):
+	// Next steps:
 	// 1. sbom.LoadSBOM(...)
 	// 2. vuln.LoadVulns(...)
 	// 3. delta.ComputePackageDelta(...)
@@ -46,23 +53,23 @@ func RunEval(_ context.Context, cfg *types.Config) error {
 	// 6. reporter.PrintDeltaTable(...)
 
 	// 1. Load SBOMs
-	upPkgs, err := sbom.LoadSBOM(cfg.UpstreamSBOMPath, cfg.UpstreamSBOMFormat)
+	upstreamPkgs, err := bom.NewLoadSBOM(cfg.UpstreamSBOMPath)
 	if err != nil {
 		return fmt.Errorf("load upstream SBOM: %w", err)
 	}
 
-	hdPkgs, err := sbom.LoadSBOM(cfg.HardenedSBOMPath, cfg.HardenedSBOMFormat)
+	hardendPkgs, err := bom.NewLoadSBOM(cfg.HardenedSBOMPath)
 	if err != nil {
 		return fmt.Errorf("load hardened SBOM: %w", err)
 	}
 
 	// 2. Load vuln reports
-	upVulns, err := vuln.LoadVulns(cfg.UpstreamVulnPath, cfg.UpstreamVulnFormat)
+	upstreamVulns, err := vuln.LoadVulns(cfg.UpstreamVulnPath, cfg.UpstreamVulnFormat)
 	if err != nil {
 		return fmt.Errorf("load upstream vuln report: %w", err)
 	}
 
-	hdVulns, err := vuln.LoadVulns(cfg.HardenedVulnPath, cfg.HardenedVulnFormat)
+	hardendVulns, err := vuln.LoadVulns(cfg.HardenedVulnPath, cfg.HardenedVulnFormat)
 	if err != nil {
 		return fmt.Errorf("load hardened vuln report: %w", err)
 	}
@@ -75,7 +82,7 @@ func RunEval(_ context.Context, cfg *types.Config) error {
 		}
 
 		// convert to simple set
-		m := make(map[types.VulnKey]struct{}, len(bpVulns))
+		m := make(map[vuln.VulnKey]struct{}, len(bpVulns))
 		for k := range bpVulns {
 			m[k] = struct{}{}
 		}
@@ -83,10 +90,10 @@ func RunEval(_ context.Context, cfg *types.Config) error {
 	}
 
 	// 3. Package-level delta
-	removedPkgs, addedPkgs, commonPkgs := ComputePackageDelta(upPkgs, hdPkgs)
+	removedPkgs, addedPkgs, commonPkgs := ComputePackageDelta(upstreamPkgs, hardendPkgs)
 
 	// 4. Vuln-level delta
-	deltas, metrics := ComputeVulnDelta(upVulns, hdVulns, ignore)
+	deltas, metrics := ComputeVulnDelta(upstreamVulns, hardendVulns, ignore)
 
 	// 4.5. Link package delta → CVE delta
 	metrics = EnrichMetricsWithPackageImpact(metrics, deltas, removedPkgs, addedPkgs, commonPkgs)

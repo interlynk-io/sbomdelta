@@ -1,178 +1,101 @@
 
-# sbomdelta: vulnerability delta b/w upstream & hardened Images
+# sbomdelta
 
-`sbomdelta` is a **CLI tool written in Go** that calculates the **true vulnerability delta** between:
+`sbomdelta` is a lightweight CLI tool that explains **why** vulnerability counts differ between:
 
-- An **official upstream base image** (Ubuntu, Alpine, Debian, etc.)
-- A **provider hardened image**
+- an **upstream upstream base image** (Ubuntu, Alpine, Debian, etc.)
+- a **provider hardened image**
 
-It works by comparing:
+Instead of only reporting CVEs, it answers the real question:
 
-1. **Package differences**
-2. **CVE differences**
-3. **Backported fixes (false positives from scanners)**
+> *“What actually changed between these two images that caused CVEs to appear or disappear?”*
 
-## Why This Tool Exists
+## Why sbomdelta ?
 
-When comparing:
+Traditional scanners show only:
 
-- `ubuntu:22.04`
-  vs
-- `hardened-provider:22.04`
+```text
+Upstream image: 50 CVEs  
+Hardened image: 20 CVEs
+```
 
-You may see:
+But they cannot explain:
 
-- CVEs disappear because **packages were removed**
-- CVEs disappear because of **backported fixes**
-- CVEs appear because **new packages were added**
-- CVEs appear in both images but with **different severities**
-- CVEs that scanners flag but are actually **already patched by the distro**
+- Were CVEs removed because packages were removed?
+- Were new CVEs added because hardened added new packages?
+- Are some CVEs false positives due to distro backport?
+- Which packages are responsible for which CVE delta?
 
-❗ **Regular vulnerability scanners cannot explain these deltas correctly.**
+sbomdelta solves this by combining:
 
-This tool answers:
+1. **SBOM Comparision**: real package difference
+2. **Vulnerability Comparision**: real CVE difference
+3. **Optional backport ignore file**: suppress distro false positives
 
-- *Which CVEs were really eliminated?*
-- *Which are new regressions?*
-- *Which are fake results due to backports?*
-- *Which packages caused the delta?*
-
-## What sbomdelta Measures
-
-The delta is calculated in **three dimensions**:
+## What sbomdelta computes
 
 ### 1. Package Delta
 
-| Case                                 | Meaning                          |
-| ------------------------------------ | -------------------------------- |
-| Package present in **upstream only** | Attack surface **reduced**    |
-| Package present in **hardened only** | New attack surface introduced |
-| Package present in **both**          | Neutral                          |
+How the ingredient list changed:
+
+| Case                      | Interpretation                |
+|--------------------------|-------------------------------|
+| Upstream → not in hardened | Package removed (risk reduced) |
+| Not in upstream → hardened | New package added (new risk)   |
+| Present in both          | Stable package surface        |
 
 ### 2. CVE Delta
 
-For every `(package + CVE)` pair:
+For every `(package + CVE)`:
 
-| Status               | Meaning                        |
-| -------------------- | ------------------------------ |
-| `ONLY_UPSTREAM`      |  Vulnerability mitigated      |
-| `ONLY_HARDENED`      |  New vulnerability introduced |
-| `BOTH_SAME_SEVERITY` |  No security improvement     |
-| `BOTH_DIFF_SEVERITY` |  Severity changed            |
+| Status               | Meaning                                   |
+|---------------------|-------------------------------------------|
+| `ONLY_UPSTREAM`     | CVE eliminated (patch or package removed) |
+| `ONLY_HARDENED`     | New CVE introduced                         |
+| `BOTH_SAME_SEVERITY`| No change                                  |
+| `BOTH_DIFF_SEVERITY`| Severity increased/decreased               |
 
-### 3. Backport Delta (False Positives)
+### 3. Backport Handling (Optional)
 
-Many Linux distros **patch CVEs without changing versions**.
+Many distros patch CVEs *without* changing version numbers.
 
-Scanners report:
+Provide a backport file and sbomdelta will:
 
-```
-CVE-XXXX present ❌
-```
+- Remove those CVEs from delta 
+- Treat them as false positives
+- Report how many were suppressed
 
-But distro says:
-
-```
-CVE-XXXX already fixed ✅
-```
-
-This causes **false positives**.
-
-If you provide an optional **backport exception file**, sbomdelta will:
-
-- Detect them
-- Remove them from delta calculation
-- Report how many false positives were found
-
-## Supported Input Formats
-
-### SBOM Formats
-
-| Format         | Supported |
-| -------------- | --------- |
-| CycloneDX JSON | yes         |
-| SPDX JSON      | yes         |
-
-### Vulnerability Scanner Formats
-
-| Scanner    | Supported |
-| ---------- | --------- |
-| Trivy JSON | yes         |
-| Grype JSON | yes         |
-
-### 🔍 Backport Exception File (Optional)
-
-| Type       | Supported |
-| ---------- | --------- |
-| Trivy JSON | yes         |
-| Grype JSON | yes         |
-
-Used to suppress **backported CVEs**
-
-## How the Delta is Computed
-
-High-level data flow:
-
-```text
-Upstream Image  → SBOM → Vulnerabilities
-Hardened Image  → SBOM → Vulnerabilities
-Backport File   → Optional Suppression
-
-→ Package Delta
-→ CVE Delta
-→ Backport Delta
-→ Final Metrics + Colored Report
-```
-
-## Project Structure
-
-```bash
-.
-├── cmd
-│   └── root.go
-├── main.go
-├── pkg
-│   ├── delta        # Core delta logic
-│   ├── internal     # Internal types & helpers
-│   ├── reporter     # Colored CLI output
-│   ├── sbom         # CycloneDX & SPDX loaders
-│   ├── vuln         # Trivy & Grype loaders
-│   └── types        # Shared enums + configs
-└── README.md
-```
-
-## CLI Usage
+## Usage and Examples
 
 ### Basic Usage (No Backport File)
 
 ```bash
-sbomdelta eval \
-  --up-sbom upstream.cdx.json \
-  --hd-sbom hardened.cdx.json \
-  --up-vuln upstream-trivy.json \
-  --hd-vuln hardened-trivy.json
+sbomdelta eval \                                   
+--up-sbom=testdata/upstream-sbom.cdx.json \           
+--hd-sbom=testdata/hardend-sbom.cdx.json \           
+--up-vuln=testdata/upstream-vuln.trivy.json \           
+--hd-vuln=testdata/hardend-vuln.trivy.json  
 ```
 
 ### With Backport Suppression
 
 ```bash
-sbomdelta eval \
-  --up-sbom upstream.cdx.json \
-  --hd-sbom hardened.cdx.json \
-  --up-vuln upstream-trivy.json \
-  --hd-vuln hardened-trivy.json \
-  --bc-vuln backports.json
+sbomdelta eval \                                   
+--up-sbom=testdata/upstream-sbom.cdx.json \           
+--hd-sbom=testdata/hardend-sbom.cdx.json \           
+--up-vuln=testdata/upstream-vuln.trivy.json \           
+--hd-vuln=testdata/hardend-vuln.trivy.json  \
+--bc-vuln backports.json
 ```
 
 ### Run from Go Source
 
 ```bash
-go run main.go eval \
-  --up-sbom upstream.cdx.json \
-  --hd-sbom hardened.cdx.json \
-  --up-vuln upstream.json \
-  --hd-vuln hardened.json \
-  --bc-vuln backports.json
+go run main.go eval \                                  
+--up-sbom=testdata/upstream-sbom.cdx.json \           
+--hd-sbom=testdata/hardend-sbom.cdx.json \           
+--up-vuln=testdata/upstream-vuln.trivy.json \           
+--hd-vuln=testdata/hardend-vuln.trivy.json  
 ```
 
 ## Flags Reference
@@ -185,24 +108,37 @@ go run main.go eval \
 | `--hd-vuln` | Hardened vulnerability report      |
 | `--bc-vuln` | (Optional) Backport exception file |
 
-## Output
+## Example output
 
-### Summary Metrics
+```bash
 
-- Removed packages
-- Added packages
-- Total upstream CVEs
-- Total hardened CVEs
-- CVEs eliminated
-- New CVEs introduced
-- High/Critical reductions
-- High/Critical regressions
-- False positives due to backports
+=== Raw Vulnerability Counts ===
+  Upstream total CVEs:   3
+  Hardened total CVEs:   3
 
-### Detailed Delta Table (Colorized)
+=== Package Delta (What Actually Changed) ===
+  Packages removed in hardened: 2
+  Packages added in hardened:   2
+  Packages common in both:      1
 
-| PACKAGE@VER | CVE           | STATUS          | UPSTREAM | HARDENED |
-| ----------- | ------------- | --------------- | -------- | -------- |
-| openssl@3.0 | CVE-2024-1234 | ONLY_UPSTREAM  | HIGH     | –        |
-| curl@8.1    | CVE-2023-9876 | ONLY_HARDENED  | –        | CRITICAL |
-| bash@5.2    | CVE-2022-5555 | BOTH_SAME     | MEDIUM   | MEDIUM   |
+=== Impact of Package Changes on CVEs ===
+  CVEs removed because packages disappeared: 2
+  CVEs added because packages appeared:      2
+  CVEs on common packages:                   1
+
+=== CVE Delta (Root-Cause Breakdown) ===
+  Only in upstream:  2
+  Only in hardened:  2
+  Present in both:   1
+  High/Crit removed: 1
+  High/Crit added:   1
+
+=== Vulnerability Delta Detail ===
+PACKAGE@VERSION                          CVE                STATUS                 UPSTREAM   HARDENED  
+---------------------------------------------------------------------------------------------------------
+curl@7.80.0                              CVE-2024-2222      ONLY_UPSTREAM          MEDIUM     -         
+curl@7.88.0                              CVE-2024-2222      ONLY_HARDENED          -          LOW       
+jq@1.6                                   CVE-2024-4444      ONLY_HARDENED          -          HIGH      
+openssl@1.0.2                            CVE-2024-1111      ONLY_UPSTREAM          HIGH       -         
+zlib@1.2.11                              CVE-2024-3333      BOTH_SAME_SEVERITY     LOW        LOW       
+```

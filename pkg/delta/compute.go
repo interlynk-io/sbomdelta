@@ -1,16 +1,31 @@
+// Copyright 2025 Interlynk.io
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package delta
 
 import (
 	"sort"
 
-	"github.com/interlynk-io/sbomdelta/pkg/types"
+	"github.com/interlynk-io/sbomdelta/pkg/bom"
+	"github.com/interlynk-io/sbomdelta/pkg/vuln"
 )
 
 // ComputePackageDelta compute packages removed from hardened, added into hardened and common in both
-func ComputePackageDelta(upstreamPkgs, hardendPkgs map[types.PkgKey]types.Package) (removed, added, common []types.PkgKey) {
+func ComputePackageDelta(upstreamPkgs, hardendPkgs map[bom.PkgKey]bom.Package) (removed, added, common []bom.PkgKey) {
 	// catalog variable stores all upstream package keys
 	// and hardened package keys into it.
-	catalog := make(map[types.PkgKey]struct{})
+	catalog := make(map[bom.PkgKey]struct{})
 
 	for key := range upstreamPkgs {
 		catalog[key] = struct{}{}
@@ -70,18 +85,18 @@ type Metrics struct {
 
 // BackportIgnore describes which (pkg, CVE) pairs to ignore (optional).
 type BackportIgnore interface {
-	Matches(pkg types.PkgKey, cve string) bool
+	Matches(pkg bom.PkgKey, cve string) bool
 }
 
 // ComputeVulnDelta does the vuln delta, including optional backport ignore.
-func ComputeVulnDelta(upstreamVulns, hardendVulns map[types.VulnKey]types.VulnFinding, ignore BackportIgnore) ([]types.DeltaRow, map[string]int) {
-	deltas := []types.DeltaRow{}
+func ComputeVulnDelta(upstreamVulns, hardendVulns map[vuln.VulnKey]vuln.VulnFinding, ignore BackportIgnore) ([]vuln.DeltaRow, map[string]int) {
+	deltas := []vuln.DeltaRow{}
 
 	// catalog variable contains all vulnerabilities keys: upstream vuln + hardend vuln keys
-	catalog := make([]types.VulnKey, 0, len(upstreamVulns)+len(hardendVulns))
+	catalog := make([]vuln.VulnKey, 0, len(upstreamVulns)+len(hardendVulns))
 
 	// seen variable avoid storing duplicate keys in catalog
-	seen := make(map[types.VulnKey]struct{})
+	seen := make(map[vuln.VulnKey]struct{})
 
 	for key := range upstreamVulns {
 		if _, ok := seen[key]; !ok {
@@ -110,7 +125,7 @@ func ComputeVulnDelta(upstreamVulns, hardendVulns map[types.VulnKey]types.VulnFi
 		// "cves_on_common_pkgs":    0,
 	}
 
-	isHighCrit := func(s types.Severity) bool {
+	isHighCrit := func(s vuln.Severity) bool {
 		return s == "HIGH" || s == "CRITICAL"
 	}
 
@@ -125,7 +140,7 @@ func ComputeVulnDelta(upstreamVulns, hardendVulns map[types.VulnKey]types.VulnFi
 			continue
 		}
 
-		delta := types.DeltaRow{
+		delta := vuln.DeltaRow{
 			PkgKey: pkgKey,
 			CVE:    cve,
 		}
@@ -134,7 +149,7 @@ func ComputeVulnDelta(upstreamVulns, hardendVulns map[types.VulnKey]types.VulnFi
 
 		// vulnerability is present in Upstream but absent in hardened
 		case hasUpVuln && !hasHardVuln:
-			delta.Status = types.StatusOnlyUpstream
+			delta.Status = vuln.StatusOnlyUpstream
 			delta.SeverityUp = upFinding.Severity
 			metrics["only_upstream"]++
 
@@ -144,7 +159,7 @@ func ComputeVulnDelta(upstreamVulns, hardendVulns map[types.VulnKey]types.VulnFi
 
 		// vulnerability is absent in Upstream but present in hardened
 		case !hasUpVuln && hasHardVuln:
-			delta.Status = types.StatusOnlyHardened
+			delta.Status = vuln.StatusOnlyHardened
 			delta.SeverityHardened = hardFinding.Severity
 			metrics["only_hardened"]++
 
@@ -158,9 +173,9 @@ func ComputeVulnDelta(upstreamVulns, hardendVulns map[types.VulnKey]types.VulnFi
 			delta.SeverityHardened = hardFinding.Severity
 
 			if upFinding.Severity == hardFinding.Severity {
-				delta.Status = types.StatusBothSameSeverity
+				delta.Status = vuln.StatusBothSameSeverity
 			} else {
-				delta.Status = types.StatusBothDiffSeverity
+				delta.Status = vuln.StatusBothDiffSeverity
 			}
 
 			metrics["both"]++
@@ -185,10 +200,10 @@ func ComputeVulnDelta(upstreamVulns, hardendVulns map[types.VulnKey]types.VulnFi
 	return deltas, metrics
 }
 
-func ComputeLinkedPackageAndCVEDelta(removedPkgs, addedPkgs, commonPkgs []types.PkgKey, deltas []types.DeltaRow) {
-	removedSet := make(map[types.PkgKey]struct{})
-	addedSet := make(map[types.PkgKey]struct{})
-	commonSet := make(map[types.PkgKey]struct{})
+func ComputeLinkedPackageAndCVEDelta(removedPkgs, addedPkgs, commonPkgs []bom.PkgKey, deltas []vuln.DeltaRow) {
+	removedSet := make(map[bom.PkgKey]struct{})
+	addedSet := make(map[bom.PkgKey]struct{})
+	commonSet := make(map[bom.PkgKey]struct{})
 
 	for _, k := range removedPkgs {
 		removedSet[k] = struct{}{}
@@ -217,10 +232,10 @@ func ComputeLinkedPackageAndCVEDelta(removedPkgs, addedPkgs, commonPkgs []types.
 // - how many CVEs disappeared because their packages were removed?
 // - how many CVEs appeared because of newly added packages?
 // - how many CVEs are on packages common to both images?
-func EnrichMetricsWithPackageImpact(metrics map[string]int, deltas []types.DeltaRow, removedPkgs, addedPkgs, commonPkgs []types.PkgKey) map[string]int {
-	removedSet := types.MakePkgSet(removedPkgs)
-	addedSet := types.MakePkgSet(addedPkgs)
-	commonSet := types.MakePkgSet(commonPkgs)
+func EnrichMetricsWithPackageImpact(metrics map[string]int, deltas []vuln.DeltaRow, removedPkgs, addedPkgs, commonPkgs []bom.PkgKey) map[string]int {
+	removedSet := vuln.MakePkgSet(removedPkgs)
+	addedSet := vuln.MakePkgSet(addedPkgs)
+	commonSet := vuln.MakePkgSet(commonPkgs)
 
 	for _, delta := range deltas {
 		// 1) CVEs that disappeared because packages were removed
@@ -228,7 +243,7 @@ func EnrichMetricsWithPackageImpact(metrics map[string]int, deltas []types.Delta
 		// Logic:
 		// - status == ONLY_UPSTREAM  → CVE does not appear in hardened
 		// - r.PkgKey is in removedSet → that entire package was removed
-		if _, ok := removedSet[delta.PkgKey]; ok && delta.Status == types.StatusOnlyUpstream {
+		if _, ok := removedSet[delta.PkgKey]; ok && delta.Status == vuln.StatusOnlyUpstream {
 			metrics["cves_from_removed_pkgs"]++
 		}
 
@@ -237,7 +252,7 @@ func EnrichMetricsWithPackageImpact(metrics map[string]int, deltas []types.Delta
 		// Logic:
 		// - status == ONLY_HARDENED → CVE only exists in hardened
 		// - r.PkgKey is in addedSet → package does not exist in upstream
-		if _, ok := addedSet[delta.PkgKey]; ok && delta.Status == types.StatusOnlyHardened {
+		if _, ok := addedSet[delta.PkgKey]; ok && delta.Status == vuln.StatusOnlyHardened {
 			metrics["cves_from_added_pkgs"]++
 		}
 

@@ -142,3 +142,37 @@ jq@1.6                                   CVE-2024-4444      ONLY_HARDENED       
 openssl@1.0.2                            CVE-2024-1111      ONLY_UPSTREAM          HIGH       -         
 zlib@1.2.11                              CVE-2024-3333      BOTH_SAME_SEVERITY     LOW        LOW       
 ```
+
+## Other SBOM Open Source Tools
+
+Interlynk provides a comprehensive suite of SBOM tools:
+
+- [**SBOM Assembler**](https://github.com/interlynk-io/sbomasm) - Complete SBOM toolkit (Merging/Enriching/Signing and Editing)
+- [**SBOM Explorer**](https://github.com/interlynk-io/sbomex) - Search and download from public repositories  
+- [**SBOM Search Tool**](https://github.com/interlynk-io/sbomgr) - Context-aware repository search
+- [**SBOM Seamless Transfer**](https://github.com/interlynk-io/sbommv) - Transfer between systems
+- [**SBOM Benchmark**](https://www.sbombenchmark.dev) - Repository of SBOM quality scores
+
+## Blog Posts
+
+- [Stop Comparing CVE Counts: How SBOM deltas explain upstream vs hardened image security](https://sbom-insights.dev/posts/upstream-vs-hardened-image-cves-why-numbers-dont-match/)
+
+## Contact
+
+- ❓ [Community Slack](https://join.slack.com/t/sbomqa/shared_invite/zt-2jzq1ttgy-4IGzOYBEtHwJdMyYj~BACA)
+- 💬 [Live Chat](https://www.interlynk.io/#hs-chat-open)
+- 📧 [Email](mailto:hello@interlynk.io)
+- 🐛 [GitHub Issues](https://github.com/interlynk-io/sbomdelta/issues)
+- 🐦 [Follow us on X](https://twitter.com/InterlynkIo)
+
+## Stargazers
+
+If sbomdelta helps you in explainaing why vulnerability counts differ between "upstream" & "hardened" images.., please ⭐ this repository!
+
+[![Stargazers](https://starchart.cc/interlynk-io/sbomdelta.svg)](https://starchart.cc/interlynk-io/sbomdelta)
+
+---
+
+**sbomdelta** - sbomdelta is a lightweight CLI tool that explains why vulnerability counts differ between "upstream" & "hardened" images..
+
+Made with ❤️ by [Interlynk.io](https://www.interlynk.io)
